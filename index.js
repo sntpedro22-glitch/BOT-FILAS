@@ -45,7 +45,8 @@ function getConfig(guildId) {
       banner: '',
       thumbnail: '',
       modo: '1v1',
-      plataforma: 'Mobile'
+      plataforma: 'Mobile',
+      cor: '#E53935'
     });
   }
 
@@ -106,39 +107,54 @@ client.once('ready', async () => {
 // ==========================================
 
 function painelConfiguracao() {
-  return new ActionRowBuilder().addComponents(
+  return [
+    new ActionRowBuilder().addComponents(
 
-    new ButtonBuilder()
-      .setCustomId('config_cargos')
-      .setLabel('Cargos')
-      .setEmoji('👑')
-      .setStyle(ButtonStyle.Primary),
+      new ButtonBuilder()
+        .setCustomId('config_cargos')
+        .setLabel('Cargos')
+        .setEmoji('👑')
+        .setStyle(ButtonStyle.Primary),
 
-    new ButtonBuilder()
-      .setCustomId('config_filas')
-      .setLabel('Config Filas')
-      .setEmoji('⚙️')
-      .setStyle(ButtonStyle.Primary),
+      new ButtonBuilder()
+        .setCustomId('config_filas')
+        .setLabel('Config Filas')
+        .setEmoji('⚙️')
+        .setStyle(ButtonStyle.Primary),
 
-    new ButtonBuilder()
-      .setCustomId('config_valores')
-      .setLabel('Valores das Filas')
-      .setEmoji('💰')
-      .setStyle(ButtonStyle.Primary),
+      new ButtonBuilder()
+        .setCustomId('config_valores')
+        .setLabel('Valores das Filas')
+        .setEmoji('💰')
+        .setStyle(ButtonStyle.Primary),
 
-    new ButtonBuilder()
-      .setCustomId('config_taxa')
-      .setLabel('Taxa da Org')
-      .setEmoji('🏦')
-      .setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder()
+        .setCustomId('config_taxa')
+        .setLabel('Taxa da Org')
+        .setEmoji('🏦')
+        .setStyle(ButtonStyle.Secondary),
 
-    new ButtonBuilder()
-      .setCustomId('config_imagem')
-      .setLabel('Imagem')
-      .setEmoji('🖼️')
-      .setStyle(ButtonStyle.Secondary)
+      new ButtonBuilder()
+        .setCustomId('config_imagem')
+        .setLabel('Imagem')
+        .setEmoji('🖼️')
+        .setStyle(ButtonStyle.Secondary)
+    ),
 
-  );
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId('config_cor_org')
+        .setLabel('Cor da Org')
+        .setEmoji('🎨')
+        .setStyle(ButtonStyle.Secondary),
+
+      new ButtonBuilder()
+        .setCustomId('config_perfil_bot')
+        .setLabel('Config Perfil Bot')
+        .setEmoji('🤖')
+        .setStyle(ButtonStyle.Secondary)
+    )
+  ];
 }
 
 // ==========================================
@@ -315,17 +331,22 @@ async function atualizarPainelFila(mensagem, valor, lista, cfg) {
 
   if (lista.length > 0) {
     jogadoresTexto = lista
-      .map(id => `<@${id}>`)
+      .map(jogador => `<@${jogador.id}>\n> ${jogador.tipo}`)
       .join('\n');
   }
 
+  const normal = lista.filter(j => j.tipo === 'Normal').length;
+  const ump = lista.filter(j => j.tipo === 'UMP e XM8').length;
+
   const embed = new EmbedBuilder()
+    .setColor(cfg.cor || '#E53935')
     .setTitle('🎮 FILAS MOBILE')
     .setDescription(
       `🎮 **Modo:** ${cfg.modo}\n` +
       `📱 **Plataforma:** ${cfg.plataforma}\n` +
       `💰 **Valor:** R$ ${valor.toFixed(2).replace('.', ',')}\n\n` +
-      `👥 **Jogadores: ${lista.length}/2**\n\n` +
+      `👥 **Jogadores: ${lista.length}/4**\n` +
+      `🧊 **Normal:** ${normal}/2  |  🔫 **UMP e XM8:** ${ump}/2\n\n` +
       jogadoresTexto
     );
 
@@ -341,14 +362,14 @@ async function atualizarPainelFila(mensagem, valor, lista, cfg) {
 
     new ButtonBuilder()
       .setCustomId(`entrar_normal_${valor}`)
-      .setLabel('Gelo Normal')
+      .setLabel('Normal')
       .setEmoji('🧊')
       .setStyle(ButtonStyle.Primary),
 
     new ButtonBuilder()
-      .setCustomId(`entrar_infinito_${valor}`)
-      .setLabel('Gelo Infinito')
-      .setEmoji('♾️')
+      .setCustomId(`entrar_ump_${valor}`)
+      .setLabel('Full Ump Xm8')
+      .setEmoji('🔫')
       .setStyle(ButtonStyle.Success),
 
     new ButtonBuilder()
@@ -389,7 +410,7 @@ client.on('interactionCreate', async interaction => {
           content:
             '⚙️ **CONFIGURAÇÃO DAS FILAS**\n\n' +
             'Escolha uma opção abaixo para configurar seu sistema.',
-          components: [painelConfiguracao()],
+          components: painelConfiguracao(),
           ephemeral: true
         });
 
@@ -419,13 +440,7 @@ client.on('interactionCreate', async interaction => {
           ephemeral: true
         });
 
-        // Apaga os painéis antigos
         await apagarPainelsAntigos(interaction.channel);
-
-        // ====================================
-        // MAIOR → MENOR
-        // SEM DUPLICADOS
-        // ====================================
 
         const valores = [
           ...new Set(
@@ -438,10 +453,6 @@ client.on('interactionCreate', async interaction => {
           )
         ].sort((a, b) => b - a);
 
-        // ====================================
-        // CRIAR FILAS
-        // ====================================
-
         for (const valor of valores) {
 
           const filaId = `${interaction.guild.id}_${valor}`;
@@ -449,14 +460,16 @@ client.on('interactionCreate', async interaction => {
           filas.set(filaId, []);
 
           const embed = new EmbedBuilder()
+            .setColor(cfg.cor || '#E53935')
             .setTitle('🎮 FILAS MOBILE')
             .setDescription(
               `🎮 **Modo:** ${cfg.modo}\n` +
               `📱 **Plataforma:** ${cfg.plataforma}\n` +
               `💰 **Valor:** R$ ${valor.toFixed(2).replace('.', ',')}\n\n` +
-              `👥 **Jogadores: 0/2**\n\n` +
+              `👥 **Jogadores: 0/4**\n` +
+              `🧊 **Normal:** 0/2  |  🔫 **UMP e XM8:** 0/2\n\n` +
               `👤 **Ninguém entrou ainda.**\n\n` +
-              `🧊 Escolha uma opção abaixo para entrar na fila!`
+              `🎮 Escolha uma opção abaixo para entrar na fila!`
             );
 
           if (cfg.thumbnail) {
@@ -471,14 +484,14 @@ client.on('interactionCreate', async interaction => {
 
             new ButtonBuilder()
               .setCustomId(`entrar_normal_${valor}`)
-              .setLabel('Gelo Normal')
+              .setLabel('Normal')
               .setEmoji('🧊')
               .setStyle(ButtonStyle.Primary),
 
             new ButtonBuilder()
-              .setCustomId(`entrar_infinito_${valor}`)
-              .setLabel('Gelo Infinito')
-              .setEmoji('♾️')
+              .setCustomId(`entrar_ump_${valor}`)
+              .setLabel('Full Ump Xm8')
+              .setEmoji('🔫')
               .setStyle(ButtonStyle.Success),
 
             new ButtonBuilder()
@@ -620,6 +633,64 @@ client.on('interactionCreate', async interaction => {
       }
 
       // --------------------------------------
+      // COR DA ORG
+      // --------------------------------------
+
+      if (interaction.customId === 'config_cor_org') {
+
+        const modal = new ModalBuilder()
+          .setCustomId('modal_cor_org')
+          .setTitle('🎨 Cor da Org');
+
+        const cor = new TextInputBuilder()
+          .setCustomId('cor')
+          .setLabel('Digite a cor em HEX')
+          .setPlaceholder('#FF0000')
+          .setStyle(TextInputStyle.Short)
+          .setRequired(true);
+
+        modal.addComponents(
+          new ActionRowBuilder().addComponents(cor)
+        );
+
+        await interaction.showModal(modal);
+        return;
+      }
+
+      // --------------------------------------
+      // CONFIG PERFIL BOT
+      // --------------------------------------
+
+      if (interaction.customId === 'config_perfil_bot') {
+
+        const modal = new ModalBuilder()
+          .setCustomId('modal_perfil_bot')
+          .setTitle('🤖 Config Perfil Bot');
+
+        const foto = new TextInputBuilder()
+          .setCustomId('foto')
+          .setLabel('Adicionar link da foto')
+          .setPlaceholder('https://...')
+          .setStyle(TextInputStyle.Short)
+          .setRequired(false);
+
+        const bannerBot = new TextInputBuilder()
+          .setCustomId('banner_bot')
+          .setLabel('Adicionar link do banner')
+          .setPlaceholder('https://...')
+          .setStyle(TextInputStyle.Short)
+          .setRequired(false);
+
+        modal.addComponents(
+          new ActionRowBuilder().addComponents(foto),
+          new ActionRowBuilder().addComponents(bannerBot)
+        );
+
+        await interaction.showModal(modal);
+        return;
+      }
+
+      // --------------------------------------
       // TAXA
       // --------------------------------------
 
@@ -642,14 +713,14 @@ client.on('interactionCreate', async interaction => {
 
       if (
         interaction.customId.startsWith('entrar_normal_') ||
-        interaction.customId.startsWith('entrar_infinito_')
+        interaction.customId.startsWith('entrar_ump_')
       ) {
 
-        const valorTexto = interaction.customId
-          .replace('entrar_normal_', '')
-          .replace('entrar_infinito_', '');
-
+        const isNormal = interaction.customId.startsWith('entrar_normal_');
+        const prefix = isNormal ? 'entrar_normal_' : 'entrar_ump_';
+        const valorTexto = interaction.customId.replace(prefix, '');
         const valor = Number(valorTexto);
+        const tipo = isNormal ? 'Normal' : 'UMP e XM8';
 
         const filaId = `${guildId}_${valor}`;
 
@@ -659,145 +730,105 @@ client.on('interactionCreate', async interaction => {
 
         const lista = filas.get(filaId);
 
-        // Já está na fila
-        if (lista.includes(interaction.user.id)) {
-
+        if (lista.some(j => j.id === interaction.user.id)) {
           await interaction.reply({
-            content:
-              '⚠️ **Você já está nessa fila!**',
+            content: '⚠️ **Você já está nessa fila!**',
             ephemeral: true
           });
-
           return;
         }
 
-        // Fila cheia
-        if (lista.length >= 2) {
+        const mesmaModalidade = lista.filter(j => j.tipo === tipo);
 
+        if (mesmaModalidade.length >= 2) {
           await interaction.reply({
-            content:
-              '❌ **Essa fila já está cheia!**',
+            content: `❌ **A fila ${tipo} já está cheia!**`,
             ephemeral: true
           });
-
           return;
         }
 
-        // Adiciona jogador
-        lista.push(interaction.user.id);
+        lista.push({ id: interaction.user.id, tipo });
 
-        await atualizarPainelFila(
-          interaction.message,
-          valor,
-          lista,
-          cfg
+        await atualizarPainelFila(interaction.message, valor, lista, cfg);
+
+        if (mesmaModalidade.length === 0) {
+          await interaction.reply({
+            content:
+              `🧊 **Você entrou na fila ${tipo}!**\n\n` +
+              `💰 Valor: **R$ ${valor.toFixed(2).replace('.', ',')}**\n` +
+              `🎮 Tipo: **${tipo}**\n` +
+              `👥 Jogadores nessa modalidade: **1/2**`,
+            ephemeral: true
+          });
+          return;
+        }
+
+        const jogadoresDaPartida = lista
+          .filter(j => j.tipo === tipo)
+          .slice(0, 2);
+
+        filas.set(
+          filaId,
+          lista.filter(j => !jogadoresDaPartida.some(p => p.id === j.id))
         );
 
-        // ------------------------------------
-        // PRIMEIRO JOGADOR
-        // ------------------------------------
-
-        if (lista.length === 1) {
-
-          await interaction.reply({
-            content:
-              `🧊 **Você entrou na fila!**\n\n` +
-              `💰 Valor: **R$ ${valor.toFixed(2).replace('.', ',')}**\n` +
-              `👥 Jogadores: **1/2**`,
-            ephemeral: true
-          });
-
-          return;
-        }
-
-        // ====================================
-        // SEGUNDO JOGADOR
-        // ====================================
-
-        const jogadoresDaPartida = [...lista];
-
-        // Limpa a fila imediatamente
-        filas.set(filaId, []);
-
         await atualizarPainelFila(
           interaction.message,
           valor,
-          [],
+          filas.get(filaId),
           cfg
         );
 
         await interaction.reply({
           content:
             '🎉 **Partida encontrada!**\n\n' +
+            `🎮 Tipo: **${tipo}**\n` +
             '🔒 Criando seu tópico privado...',
           ephemeral: true
         });
 
-        // ====================================
-        // CRIAR TÓPICO PRIVADO
-        // ====================================
-
         let thread;
 
         try {
-
           thread = await interaction.channel.threads.create({
             name: 'aguardando',
             type: ChannelType.PrivateThread,
             invitable: false,
             reason: 'Partida encontrada na fila'
           });
-
         } catch (erro) {
-
-          console.error(
-            'Erro ao criar tópico privado:',
-            erro
-          );
-
+          console.error('Erro ao criar tópico privado:', erro);
           return;
         }
 
-        // Adiciona os dois jogadores
-        for (const jogadorId of jogadoresDaPartida) {
-
+        for (const jogador of jogadoresDaPartida) {
           try {
-            await thread.members.add(jogadorId);
+            await thread.members.add(jogador.id);
           } catch (erro) {
-            console.log(
-              `Não consegui adicionar ${jogadorId} ao tópico.`
-            );
+            console.log(`Não consegui adicionar ${jogador.id} ao tópico.`);
           }
-
         }
 
-        // ====================================
-        // BOTÕES DA PARTIDA
-        // ====================================
-
-        const botoesPartida =
-          new ActionRowBuilder().addComponents(
-
-            new ButtonBuilder()
-              .setCustomId(`confirmar_partida_${thread.id}`)
-              .setLabel('Confirmar')
-              .setEmoji('✅')
-              .setStyle(ButtonStyle.Success),
-
-            new ButtonBuilder()
-              .setCustomId(`cancelar_partida_${thread.id}`)
-              .setLabel('Cancelar')
-              .setEmoji('❌')
-              .setStyle(ButtonStyle.Danger)
-
-          );
+        const botoesPartida = new ActionRowBuilder().addComponents(
+          new ButtonBuilder()
+            .setCustomId(`confirmar_partida_${thread.id}`)
+            .setLabel('Confirmar')
+            .setEmoji('✅')
+            .setStyle(ButtonStyle.Success),
+          new ButtonBuilder()
+            .setCustomId(`cancelar_partida_${thread.id}`)
+            .setLabel('Cancelar')
+            .setEmoji('❌')
+            .setStyle(ButtonStyle.Danger)
+        );
 
         await thread.send({
           content:
             `🎮 **SUA FILA FOI CRIADA!**\n\n` +
             `👥 Jogadores:\n` +
-            `• <@${jogadoresDaPartida[0]}>\n` +
-            `• <@${jogadoresDaPartida[1]}>\n\n` +
+            `• <@${jogadoresDaPartida[0].id}>\n> ${jogadoresDaPartida[0].tipo}\n` +
+            `• <@${jogadoresDaPartida[1].id}>\n> ${jogadoresDaPartida[1].tipo}\n\n` +
             `💰 **Valor:** R$ ${valor.toFixed(2).replace('.', ',')}\n` +
             `🎮 **Modo:** ${cfg.modo}\n` +
             `📱 **Plataforma:** ${cfg.plataforma}\n\n` +
@@ -823,8 +854,8 @@ client.on('interactionCreate', async interaction => {
 
         const lista = filas.get(filaId) || [];
 
-        const index = lista.indexOf(
-          interaction.user.id
+        const index = lista.findIndex(
+          jogador => jogador.id === interaction.user.id
         );
 
         if (index === -1) {
@@ -889,7 +920,6 @@ client.on('interactionCreate', async interaction => {
           return;
         }
 
-        // Cria/recupera confirmações
         if (!interaction.channel.confirmacoes) {
           interaction.channel.confirmacoes = new Set();
         }
@@ -897,7 +927,6 @@ client.on('interactionCreate', async interaction => {
         const confirmacoes =
           interaction.channel.confirmacoes;
 
-        // Já confirmou
         if (
           confirmacoes.has(
             interaction.user.id
@@ -913,7 +942,6 @@ client.on('interactionCreate', async interaction => {
           return;
         }
 
-        // Confirma
         confirmacoes.add(
           interaction.user.id
         );
@@ -928,10 +956,6 @@ client.on('interactionCreate', async interaction => {
           content:
             `✅ <@${interaction.user.id}> **confirmou a partida!**`
         });
-
-        // ====================================
-        // OS DOIS CONFIRMARAM
-        // ====================================
 
         if (confirmacoes.size >= 2) {
 
@@ -999,10 +1023,6 @@ client.on('interactionCreate', async interaction => {
         const confirmacoes =
           interaction.channel.confirmacoes;
 
-        // ====================================
-        // SE JÁ CONFIRMOU, NÃO PODE CANCELAR
-        // ====================================
-
         if (
           confirmacoes.has(
             interaction.user.id
@@ -1062,7 +1082,6 @@ client.on('interactionCreate', async interaction => {
         const cargoId =
           cargoConfig.soltarChave;
 
-        // Cargo não configurado
         if (!cargoId) {
 
           await interaction.reply({
@@ -1074,7 +1093,6 @@ client.on('interactionCreate', async interaction => {
           return;
         }
 
-        // Verifica cargo do usuário
         if (
           !interaction.member.roles.cache.has(
             cargoId
@@ -1269,12 +1287,10 @@ client.on('interactionCreate', async interaction => {
             valor > 0
           );
 
-        // Remove duplicados
         cfg.valores = [
           ...new Set(valores)
         ];
 
-        // Ordena maior → menor
         cfg.valores.sort(
           (a, b) => b - a
         );
@@ -1325,6 +1341,95 @@ client.on('interactionCreate', async interaction => {
 
         return;
       }
+
+      // --------------------------------------
+      // MODAL COR DA ORG
+      // --------------------------------------
+
+      if (interaction.customId === 'modal_cor_org') {
+
+        let cor =
+          interaction.fields
+            .getTextInputValue('cor')
+            .trim();
+
+        if (!/^#?[0-9A-Fa-f]{6}$/.test(cor)) {
+
+          await interaction.reply({
+            content:
+              '❌ **Cor inválida!** Use o formato HEX, por exemplo `#FF0000`.',
+            ephemeral: true
+          });
+
+          return;
+        }
+
+        if (!cor.startsWith('#')) {
+          cor = `#${cor}`;
+        }
+
+        cfg.cor = cor;
+
+        await interaction.reply({
+          content:
+            `🎨 **Cor da Org atualizada para:** ${cor}`,
+          ephemeral: true
+        });
+
+        return;
+      }
+
+      // --------------------------------------
+      // MODAL PERFIL BOT
+      // --------------------------------------
+
+      if (interaction.customId === 'modal_perfil_bot') {
+
+        const foto =
+          interaction.fields
+            .getTextInputValue('foto')
+            .trim();
+
+        const bannerBot =
+          interaction.fields
+            .getTextInputValue('banner_bot')
+            .trim();
+
+        try {
+
+          if (foto) {
+            await client.user.setAvatar(foto);
+          }
+
+          if (bannerBot) {
+            await client.user.setBanner(bannerBot);
+          }
+
+          await interaction.reply({
+            content:
+              '🤖 **Perfil do bot atualizado com sucesso!**\n\n' +
+              (foto ? '🖼️ Foto atualizada.\n' : '') +
+              (bannerBot ? '🎨 Banner atualizado.' : ''),
+            ephemeral: true
+          });
+
+        } catch (erro) {
+
+          console.error(
+            'Erro ao atualizar perfil do bot:',
+            erro
+          );
+
+          await interaction.reply({
+            content:
+              '❌ **Não consegui atualizar o perfil.** Verifique se os links da foto e do banner são válidos.',
+            ephemeral: true
+          });
+
+        }
+
+        return;
+      }
     }
 
   } catch (erro) {
@@ -1336,7 +1441,10 @@ client.on('interactionCreate', async interaction => {
 
     try {
 
-      if (interaction.replied || interaction.deferred) {
+      if (
+        interaction.replied ||
+        interaction.deferred
+      ) {
 
         await interaction.followUp({
           content:
@@ -1355,10 +1463,13 @@ client.on('interactionCreate', async interaction => {
       }
 
     } catch (erroResposta) {
+
       console.log(
         'Não consegui enviar mensagem de erro.'
       );
+
     }
+
   }
 
 });
